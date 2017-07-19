@@ -74,7 +74,7 @@ get-variable WPF*
 }
 
 #Environment Variables
-$Path_to_Install = C:\Users\ryan\Downloads\Preseed\custom-ubuntu-http-ryan.iso
+$Path_to_Install = 'C:\Users\ryan\Downloads\Preseed\custom-ubuntu-http-ryan.iso'
  
 Get-FormVariables 
 #Pulls Data to from form into variables
@@ -103,6 +103,7 @@ Write-Host $VMCpuCount
 Write-Host $VMNetworking
 Write-Host $VMHDDSize
 Write-Host $VMHost
+Write-Host $Path_to_Install
 
 #Fixes Integer Issue
 if ($VMMemory -match "1GB") {
@@ -134,7 +135,10 @@ Set-VMProcessor –VMName $VMName –count $VMCpuCount
 
 #Modify DVD Drive for PreseedISO
 Write-Host "Adding Preseed Disk"
-Set-VMDvdDrive -VMName $VMName -Path $Path_to_Install
+Set-VMDvdDrive -VMName $VMName -ControllerNumber 0 -Path $Path_to_Install
+
+#Disable Secure Boot
+Set-VMFirmware -VMName $VMName -EnableSecureBoot Off
 
 #Networking Settings Change
 Write-Host "Changing to deployment VLAN ready for kicking"
@@ -144,9 +148,9 @@ Set-VMNetworkAdapterVlan -VMName $VMName -Access -VlanId 4010
 Write-Host "Starting VM!"
 Start-VM -VMName $VMName
 
-#Patience
+#Patience (Add in a loop to check for when the DVD media is ejected)
 Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
-Start-Sleep -s 5
+Start-Sleep -s 120
 
 #Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
@@ -162,3 +166,14 @@ Restart-VM $VMName -Force
 
 #Edited out VHD steps for quicker testing.
 #-NewVHDPath C:\Lab\VHD\$VMName\$VMName.vhdx -NewVHDSizeBytes $VMHddSize -Path C:\Lab\VM
+
+#Logic below to identify when 'kick' has completed. This will run in a loop, every 30 seconds, before waiting to run connectivity checks.
+
+#$VMDvdDriveStatus = Get-VMDvdDrive -VMName $VMName
+#if ([boolean]$VMDvdDriveStatus -match 'TRUE'){
+#Write-Host "True"
+#}
+#if ([boolean]$VMDvdDriveStatus -match 'FALSE') {
+#Write-Host "False"
+#}
+
