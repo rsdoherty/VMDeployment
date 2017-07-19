@@ -5,4 +5,3 @@ Write-Host "True"
 if ([boolean]$VMDvdDriveStatus -match 'FALSE') {
 Write-Host "False"
 }
-
