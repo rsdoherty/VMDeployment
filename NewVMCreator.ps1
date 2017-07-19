@@ -121,22 +121,37 @@ $VMHddSize = 60GB }
 if ($VMHddSize -match "80GB") {
 $VMHddSize = 80GB }
 
+#Create VM
 Write-Host "Creating VM"
 New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking
+
+#Modify CPU Cores
 Write-Host "Setting CPU cores:"
 Set-VMProcessor –VMName $VMName –count $VMCpuCount
+
+#Networking Settings Change
 Write-Host "Changing to deployment VLAN ready for kicking"
 Set-VMNetworkAdapterVlan -VMName $VMName -Access -VlanId 4010
+
+#Start VM for Kicking
 Write-Host "Starting VM!"
 Start-VM -VMName $VMName
+
+#Patience
 Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
 Start-Sleep -s 5
+
+#Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
 Set-VMNetworkAdapterVlan -VMName $VMName -Untagged
+
+#Forcefully Restart Host
 Write-Host "Server forcefully going down ready for connectivity check!"
 Restart-VM $VMName -Force
-Write-Host "Debugging:"
-Get-VM -Name $VMName | Format-Table
+
+#Debug Code
+#Write-Host "Debugging:"
+#Get-VM -Name $VMName | Format-Table
 
 #Edited out VHD steps for quicker testing.
 #-NewVHDPath C:\Lab\VHD\$VMName\$VMName.vhdx -NewVHDSizeBytes $VMHddSize -Path C:\Lab\VM
