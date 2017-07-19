@@ -72,6 +72,9 @@ if ($global:ReadmeDisplay -ne $true){Write-host "If you need to reference this d
 write-host "Found the following interactable elements from our form" -ForegroundColor Cyan
 get-variable WPF*
 }
+
+#Environment Variables
+$Path_to_Install = C:\Users\ryan\Downloads\Preseed\custom-ubuntu-http-ryan.iso
  
 Get-FormVariables 
 #Pulls Data to from form into variables
@@ -123,11 +126,15 @@ $VMHddSize = 80GB }
 
 #Create VM
 Write-Host "Creating VM"
-New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking
+New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking -BootDevice CD
 
 #Modify CPU Cores
 Write-Host "Setting CPU cores:"
 Set-VMProcessor –VMName $VMName –count $VMCpuCount
+
+#Modify DVD Drive for PreseedISO
+Write-Host "Adding Preseed Disk"
+Set-VMDvdDrive -VMName $VMName -Path $Path_to_Install
 
 #Networking Settings Change
 Write-Host "Changing to deployment VLAN ready for kicking"
