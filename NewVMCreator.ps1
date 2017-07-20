@@ -162,9 +162,8 @@ Read-Host -Prompt "Press Enter to continue"
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
 Set-VMNetworkAdapterVlan -VMName $VMName -Untagged
 
-#Forcefully Restart Host
-Write-Host "Server forcefully going down ready for connectivity check!"
-Restart-VM $VMName -Force
+#Remove DVD Drive from VM
+Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
 
 #Debug Code
 #Write-Host "Debugging:"
