@@ -133,6 +133,9 @@ New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VM
 Write-Host "Setting CPU cores:"
 Set-VMProcessor –VMName $VMName –count $VMCpuCount
 
+#Disable Dynamic Memory
+Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
+
 #Modify DVD Drive for PreseedISO
 Write-Host "Adding Preseed Disk"
 Add-VMScsiController -VMName $VMName
