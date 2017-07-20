@@ -126,8 +126,8 @@ if ($VMHddSize -match "80GB") {
 $VMHddSize = 80GB }
 
 #Create VM
-Write-Host "Creating VM"
-New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking -BootDevice CD
+Write-Host "Creating VM" 
+New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking -NewVHDPath C:\Lab\VHD\$VMName\$VMName.vhdx -NewVHDSizeBytes $VMHddSize
 
 #Modify CPU Cores
 Write-Host "Setting CPU cores:"
@@ -135,7 +135,10 @@ Set-VMProcessor –VMName $VMName –count $VMCpuCount
 
 #Modify DVD Drive for PreseedISO
 Write-Host "Adding Preseed Disk"
-Set-VMDvdDrive -VMName $VMName -ControllerNumber 0 -Path $Path_to_Install
+Add-VMScsiController -VMName $VMName
+Add-VMDvdDrive -VMName $VMName -ControllerNumber 0 -Path $Path_to_Install
+$VMDvd = Get-VMDvdDrive -VMName $VMName
+Set-VMFirmware -VMName $VMName -FirstBootDevice $VMDvd
 
 #Disable Secure Boot
 Set-VMFirmware -VMName $VMName -EnableSecureBoot Off
@@ -148,9 +151,12 @@ Set-VMNetworkAdapterVlan -VMName $VMName -Access -VlanId 4010
 Write-Host "Starting VM!"
 Start-VM -VMName $VMName
 
+#Manual Pause (Testing only)
+Read-Host -Prompt "Press Enter to continue"
+
 #Patience (Add in a loop to check for when the DVD media is ejected)
-Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
-Start-Sleep -s 120
+#Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
+#Start-Sleep -s 120
 
 #Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
@@ -163,9 +169,6 @@ Restart-VM $VMName -Force
 #Debug Code
 #Write-Host "Debugging:"
 #Get-VM -Name $VMName | Format-Table
-
-#Edited out VHD steps for quicker testing.
-#-NewVHDPath C:\Lab\VHD\$VMName\$VMName.vhdx -NewVHDSizeBytes $VMHddSize -Path C:\Lab\VM
 
 #Logic below to identify when 'kick' has completed. This will run in a loop, every 30 seconds, before waiting to run connectivity checks.
 
