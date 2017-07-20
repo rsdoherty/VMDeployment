@@ -165,8 +165,10 @@ Read-Host -Prompt "Press Enter to continue"
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
 Set-VMNetworkAdapterVlan -VMName $VMName -Untagged
 
-#Remove DVD Drive from VM
-Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
+#Remove DVD Drive from VM (Commented out because it doesn't remove it becuase it can't detect it. Strange. Need to look into this further.)
+
+#Write-Host "Removing DVD Drive"
+#Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
 
 #Debug Code
 #Write-Host "Debugging:"
