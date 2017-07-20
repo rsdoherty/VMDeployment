@@ -1,4 +1,6 @@
-﻿$VMDvdDriveStatus = Get-VMDvdDrive -VMName $VMName
+﻿#Check DVD Drive has been ejected
+
+$VMDvdDriveStatus = Get-VMDvdDrive -VMName $VMName
 if ([boolean]$VMDvdDriveStatus -match 'TRUE'){
 Write-Host "True"
 }
