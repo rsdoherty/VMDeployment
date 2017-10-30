@@ -29,7 +29,7 @@
             <ComboBoxItem Content="8"/> 
         </ComboBox>
         <ComboBox x:Name="comboBox_VMNetworking" HorizontalAlignment="Left" Margin="272,161,0,0" VerticalAlignment="Top" Width="120">
-            <ComboBoxItem Content="LAN Uplink"/>
+            <ComboBoxItem Content="ExNet"/>
         </ComboBox>
         <ComboBox x:Name="comboBox_VMHddSize" HorizontalAlignment="Left" Margin="272,191,0,0" VerticalAlignment="Top" Width="120">
             <ComboBoxItem Content="20GB"/>
@@ -40,9 +40,8 @@
             <ComboBoxItem Content="120GB"/>  
         </ComboBox>
         <ComboBox x:Name="comboBox_VMHost" HorizontalAlignment="Left" Margin="272,221,0,0" VerticalAlignment="Top" Width="120">
-            <ComboBoxItem Content="HC0"/>
-            <ComboBoxItem Content="HC1"/>
-            <ComboBoxItem Content="HC2"/> 
+            <ComboBoxItem Content="HV-16-1"/>
+            <ComboBoxItem Content="HV-16-2"/>
         </ComboBox>
         <Button x:Name="button_create" Content="Create" HorizontalAlignment="Left" Margin="272,281,0,0" VerticalAlignment="Top" Width="120" />
         <Button x:Name="button_exit" Content="Exit" HorizontalAlignment="Left" Margin="272,311,0,0" VerticalAlignment="Top" Width="120" />
@@ -74,7 +73,7 @@ get-variable WPF*
 }
 
 #Environment Variables
-$Path_to_Install = 'C:\Users\ryan\Downloads\Preseed\custom-ubuntu-http-ryan.iso'
+$Path_to_Install = 'C:\Preseed\custom-ubuntu-http-ryan.iso'
  
 Get-FormVariables 
 #Pulls Data to from form into variables
@@ -127,48 +126,48 @@ $VMHddSize = 80GB }
 
 #Create VM
 Write-Host "Creating VM" 
-New-VM -Name $VMName -MemoryStartupBytes $VMMemory -Generation 2 -SwitchName $VMNetworking -NewVHDPath C:\Lab\VHD\$VMName\$VMName.vhdx -NewVHDSizeBytes $VMHddSize
+Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath C:\Lab\VHD\$using:VMName\$using:VMName.vhdx -NewVHDSizeBytes $using:VMHddSize}
 
 #Modify CPU Cores
 Write-Host "Setting CPU cores:"
-Set-VMProcessor –VMName $VMName –count $VMCpuCount
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMProcessor –VMName $using:VMName –count $using:VMCpuCount}
 
 #Disable Dynamic Memory
-Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMMemory -VMName $using:VMName -DynamicMemoryEnabled $false}
 
 #Modify DVD Drive for PreseedISO
-Write-Host "Adding Preseed Disk"
-Add-VMScsiController -VMName $VMName
-Add-VMDvdDrive -VMName $VMName -ControllerNumber 0 -Path $Path_to_Install
-$VMDvd = Get-VMDvdDrive -VMName $VMName
-Set-VMFirmware -VMName $VMName -FirstBootDevice $VMDvd
+#Write-Host "Adding Preseed Disk"
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Add-VMScsiController -VMName $using:VMName}
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Add-VMDvdDrive -VMName $using:VMName -ControllerNumber 0 -Path $using:Path_to_Install}
+Invoke-Command -ComputerName $VMHost -ScriptBlock {$VMDvd = Get-VMDvdDrive -VMName $using:VMName; Set-VMFirmware -VMName $using:VMName -FirstBootDevice $VMDvd}
 
 #Disable Secure Boot
-Set-VMFirmware -VMName $VMName -EnableSecureBoot Off
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMFirmware -VMName $using:VMName -EnableSecureBoot Off}
 
 #Networking Settings Change
 Write-Host "Changing to deployment VLAN ready for kicking"
-Set-VMNetworkAdapterVlan -VMName $VMName -Access -VlanId 4010
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanId 4010}
 
 #Start VM for Kicking
 Write-Host "Starting VM!"
-Start-VM -VMName $VMName
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Start-VM -VMName $using:VMName}
 
 #Manual Pause (Testing only)
 Read-Host -Prompt "Press Enter to continue"
 
 #Patience (Add in a loop to check for when the DVD media is ejected)
-#Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
-#Start-Sleep -s 120
+Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
+Start-Sleep -s 120
 
 #Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
-Set-VMNetworkAdapterVlan -VMName $VMName -Untagged
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Untagged}
 
 #Remove DVD Drive from VM (Commented out because it doesn't remove it becuase it can't detect it. Strange. Need to look into this further.)
 
 #Write-Host "Removing DVD Drive"
 #Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
+
 
 #Debug Code
 #Write-Host "Debugging:"
