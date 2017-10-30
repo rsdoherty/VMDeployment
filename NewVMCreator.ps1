@@ -14,7 +14,8 @@
         <Label x:Name="label_VMCpuCount" Content="VM CPU Count:" HorizontalAlignment="Left" Margin="68,127,0,0" VerticalAlignment="Top" Width="108" Height="25"/>
         <Label x:Name="label_VMNetworking" Content="VM Networking:" HorizontalAlignment="Left" Margin="68,157,0,0" VerticalAlignment="Top" Width="108" Height="27"/>
         <Label x:Name="label_HddSize" Content="HDD Size:" HorizontalAlignment="Left" Margin="68,187,0,0" VerticalAlignment="Top" Width="108" Height="25"/>
-        <Label x:Name="label_VMHost" Content="Host" HorizontalAlignment="Left" Margin="68,217,0,0" VerticalAlignment="Top" Width="108" Height="25"/>
+        <Label x:Name="label_VMHost" Content="Host:" HorizontalAlignment="Left" Margin="68,217,0,0" VerticalAlignment="Top" Width="108" Height="25"/>
+        <Label x:Name="label_VMVlan" Content="Final Vlan:" HorizontalAlignment="Left" Margin="68,247,0,0" VerticalAlignment="Top" Width="108" Height="25"/>
         <TextBox x:Name="textBox_VMName" HorizontalAlignment="Left" Height="23" Margin="272,67,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="120"/>
         <ComboBox x:Name="comboBox_VMMemory" HorizontalAlignment="Left" Margin="272,101,0,0" VerticalAlignment="Top" Width="120">
             <ComboBoxItem Content="1GB"/>
@@ -42,6 +43,10 @@
         <ComboBox x:Name="comboBox_VMHost" HorizontalAlignment="Left" Margin="272,221,0,0" VerticalAlignment="Top" Width="120">
             <ComboBoxItem Content="HV-16-1"/>
             <ComboBoxItem Content="HV-16-2"/>
+        </ComboBox>
+        <ComboBox x:Name="comboBox_VMVlan" HorizontalAlignment="Left" Margin="272,251,0,0" VerticalAlignment="Top" Width="120">
+            <ComboBoxItem Content="60 (DMZ)"/>
+            <ComboBoxItem Content="70 (Servers)"/>
         </ComboBox>
         <Button x:Name="button_create" Content="Create" HorizontalAlignment="Left" Margin="272,281,0,0" VerticalAlignment="Top" Width="120" />
         <Button x:Name="button_exit" Content="Exit" HorizontalAlignment="Left" Margin="272,311,0,0" VerticalAlignment="Top" Width="120" />
@@ -84,6 +89,7 @@ $script:VMCpuCount = $WPFcombobox_VMCpuCount.Text.ToString()
 $script:VMNetworking = $WPFcombobox_VMNetworking.Text.ToString()
 $script:VMHddSize = $WPFcombobox_VMHddSize.Text.ToString()
 $script:VMHost = $WPFcombobox_VMHost.Text.ToString()
+$script:VMVlan = $WPFcombobox_VMVlan.Text.ToString()
 $Form.Close()
 })
 $WPFbutton_exit.Add_Click({
@@ -102,6 +108,7 @@ Write-Host $VMCpuCount
 Write-Host $VMNetworking
 Write-Host $VMHDDSize
 Write-Host $VMHost
+Write-Host $VMVlan
 Write-Host $Path_to_Install
 
 #Fixes Integer Issue
@@ -124,9 +131,15 @@ $VMHddSize = 60GB }
 if ($VMHddSize -match "80GB") {
 $VMHddSize = 80GB }
 
+#Converts VLAN to Number
+if ($VMVlan -like "60*") {
+$VMVlan = 60 }
+if ($VMVlan -like "70*") {
+$VMVlan = 70 }
+
 #Create VM
 Write-Host "Creating VM" 
-Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath C:\Lab\VHD\$using:VMName\$using:VMName.vhdx -NewVHDSizeBytes $using:VMHddSize}
+Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath H:\Lab\VHD\$using:VMName\$using:VMName.vhdx -NewVHDSizeBytes $using:VMHddSize}
 
 #Modify CPU Cores
 Write-Host "Setting CPU cores:"
@@ -156,18 +169,17 @@ Invoke-Command -ComputerName $VMHost -ScriptBlock {Start-VM -VMName $using:VMNam
 Read-Host -Prompt "Press Enter to continue"
 
 #Patience (Add in a loop to check for when the DVD media is ejected)
-Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
-Start-Sleep -s 120
+#Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
+#Start-Sleep -s 120
 
 #Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
-Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Untagged}
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanID $using:VMVlan}
 
 #Remove DVD Drive from VM (Commented out because it doesn't remove it becuase it can't detect it. Strange. Need to look into this further.)
 
 #Write-Host "Removing DVD Drive"
 #Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
-
 
 #Debug Code
 #Write-Host "Debugging:"
