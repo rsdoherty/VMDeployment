@@ -81,7 +81,7 @@ get-variable WPF*
 $Path_to_Install = 'C:\Preseed\custom-ubuntu-http-ryan.iso'
  
 Get-FormVariables 
-#Pulls Data to from form into variables
+#Pulls Data from form into variables
 $WPFbutton_create.Add_Click({
 $script:VMName = $WPFtextbox_VMName.Text.ToString()
 $script:VMMemory = $WPFcombobox_VMMemory.Text.ToString()
@@ -100,16 +100,11 @@ exit
 #Displays Form
 $Form.ShowDialog() | out-null
 
-#Debug Output
-clear
-Write-Host $VMName
-Write-Host $VMMemory
-Write-Host $VMCpuCount
-Write-Host $VMNetworking
-Write-Host $VMHDDSize
-Write-Host $VMHost
-Write-Host $VMVlan
-Write-Host $Path_to_Install
+#Starting Message
+Write-Host "Deployment started!"
+
+#Starts Timer
+$StartTime = $(get-date)
 
 #Fixes Integer Issue
 if ($VMMemory -match "1GB") {
@@ -142,56 +137,71 @@ Write-Host "Creating VM"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath H:\Lab\VHD\$using:VMName\$using:VMName.vhdx -NewVHDSizeBytes $using:VMHddSize}
 
 #Modify CPU Cores
-Write-Host "Setting CPU cores:"
+Write-Host "Setting CPU cores"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMProcessor –VMName $using:VMName –count $using:VMCpuCount}
 
 #Disable Dynamic Memory
+Write-Host "Disabling Dynamic Memory"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMMemory -VMName $using:VMName -DynamicMemoryEnabled $false}
 
 #Modify DVD Drive for PreseedISO
-#Write-Host "Adding Preseed Disk"
+Write-Host "Adding Preseed Disk"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Add-VMScsiController -VMName $using:VMName}
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Add-VMDvdDrive -VMName $using:VMName -ControllerNumber 0 -Path $using:Path_to_Install}
 Invoke-Command -ComputerName $VMHost -ScriptBlock {$VMDvd = Get-VMDvdDrive -VMName $using:VMName; Set-VMFirmware -VMName $using:VMName -FirstBootDevice $VMDvd}
 
 #Disable Secure Boot
+Write-Host "Disabling Secure Boot"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMFirmware -VMName $using:VMName -EnableSecureBoot Off}
 
 #Networking Settings Change
 Write-Host "Changing to deployment VLAN ready for kicking"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanId 4010}
 
-#Start VM for Kicking
-Write-Host "Starting VM!"
+#Start VM for Deployment
+Write-Host "Starting VM"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Start-VM -VMName $using:VMName}
 
-#Manual Pause (Testing only)
-Read-Host -Prompt "Press Enter to continue"
-
-#Patience (Add in a loop to check for when the DVD media is ejected)
-#Write-Host "Waiting for VM to deploy... sleeping for 5 seconds."
-#Start-Sleep -s 120
+#Check for DVD
+Write-Host "Waiting for ISO to be ejected"
+do {
+$VMDvdDriveStatus = Invoke-Command -ComputerName $VMHost -ScriptBlock {Get-VMDvdDrive -VMName $using:VMName | Select-Object DvdMediaType}
+$VMDvdDriveConnected = $VMDvdDriveStatus.DvdMediaType
+if ($VMDvdDriveConnected.Value -eq 'ISO'){
+Write-Host "ISO still mounted! Pausing for 1 minute."
+Start-Sleep 60
+}
+if ($VMDvdDriveConnected.Value -eq 'None'){
+Write-Host "ISO removed! Resuming script!"
+}
+}
+until($VMDvdDriveConnected.Value -eq 'None')
 
 #Networking Settings Reverted
-Write-Host "Changing to standard VLAN for connectivity tests following a reboot"
+Write-Host "Changing to standard VLAN for connectivity tests"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanID $using:VMVlan}
 
-#Remove DVD Drive from VM (Commented out because it doesn't remove it becuase it can't detect it. Strange. Need to look into this further.)
+#Works out how long deployment took
+$elapsedTime = $(get-date) - $StartTime
+$totalTime = "{0:HH:mm:ss}" -f ([datetime]$elapsedTime.Ticks)
 
-#Write-Host "Removing DVD Drive"
-#Get-VMDvdDrive -VMName $VMName | Remove-VMDvdDrive
+#Final Ouput
+Write-Host "Deployment completed after $totalTime. Please test connectivity to virtual machine $VMName on VLAN $VMVlan."
 
-#Debug Code
-#Write-Host "Debugging:"
-#Get-VM -Name $VMName | Format-Table
+#Logic to implement in time
 
-#Logic below to identify when 'kick' has completed. This will run in a loop, every 30 seconds, before waiting to run connectivity checks.
+#Remove dvd drive after deployment? Will this be needed?
+#Pull MAC of VM and add this to the final output for layer 2 troubleshooting.
+#Add more output to the final message, such as VM name, host, etc.
+#Add more verbose logging. ie, vm hardware built, starting and installing OS now.
 
-#$VMDvdDriveStatus = Get-VMDvdDrive -VMName $VMName
-#if ([boolean]$VMDvdDriveStatus -match 'TRUE'){
-#Write-Host "True"
-#}
-#if ([boolean]$VMDvdDriveStatus -match 'FALSE') {
-#Write-Host "False"
-#}
-
+#Debug Output - move to line 102 if needed.
+#clear
+#Write-Host $VMName
+#Write-Host $VMMemory
+#Write-Host $VMCpuCount
+#Write-Host $VMNetworking
+#Write-Host $VMHDDSize
+#Write-Host $VMHost
+#Write-Host $VMVlan
+#Write-Host $Path_to_Install
