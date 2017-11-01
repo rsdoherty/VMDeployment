@@ -134,7 +134,11 @@ $VMVlan = 70 }
 
 #Create VM
 Write-Host "Creating VM" 
-Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath H:\Lab\VHD\$using:VMName\$using:VMName.vhdx -NewVHDSizeBytes $using:VMHddSize}
+Invoke-Command -ComputerName $VMHost -ScriptBlock {New-VM -Name $using:VMName -MemoryStartupBytes $using:VMMemory -Generation 2 -SwitchName $using:VMNetworking -NewVHDPath "C:\ClusterStorage\Volume1\Virtual Machines\$using:VMName\Virtual Hard Disks\$using:VMName.vhdx" -NewVHDSizeBytes $using:VMHddSize}
+
+#Move VM files in to cluster storage
+Write-Host "Moving storage to cluster"
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Move-VMStorage $using:VMName -DestinationStoragePath 'C:\ClusterStorage\Volume1\Virtual Machines'}
 
 #Modify CPU Cores
 Write-Host "Setting CPU cores"
@@ -155,7 +159,7 @@ Write-Host "Disabling Secure Boot"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMFirmware -VMName $using:VMName -EnableSecureBoot Off}
 
 #Networking Settings Change
-Write-Host "Changing to deployment VLAN ready for kicking"
+Write-Host "Changing to deployment VLAN ready for deployment"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanId 4010}
 
 #Start VM for Deployment
@@ -180,6 +184,10 @@ until($VMDvdDriveConnected.Value -eq 'None')
 #Networking Settings Reverted
 Write-Host "Changing to standard VLAN for connectivity tests"
 Invoke-Command -ComputerName $VMHost -ScriptBlock {Set-VMNetworkAdapterVlan -VMName $using:VMName -Access -VlanID $using:VMVlan}
+
+#Migrate into cluster
+Write-Host "Importing VM to cluster"
+Invoke-Command -ComputerName $VMHost -ScriptBlock {Get-VM -Name $using:VMName | Add-ClusterVirtualMachineRole}
 
 #Works out how long deployment took
 $elapsedTime = $(get-date) - $StartTime
